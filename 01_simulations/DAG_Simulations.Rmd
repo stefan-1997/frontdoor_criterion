@@ -1,0 +1,502 @@
+---
+title: 'Master Seminar in Marketing'
+subtitle: 'Simulations challenging the DAG framework'
+author: "Stefan Glaisner (4222790)"
+date: "`r format(Sys.Date(), '%d-%m-%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+# Introduction to the DAG framework
+
+*DAG* = Directed Acyclic Graphs
+
+## Main Terminology
+
+- All nodes that have arrows going directly into another node are this node's *parents*.
+- *Ancestors* of a node include parents of that node, their parents, and so on.
+- For any given node all the nodes that have arrows going into them directly from the given node are its *children*.
+- *Descendants* of a node include its children, their children, and so on.
+- A *collider* of a path is an non-endpoint node on that path with arrows from that path going into the node, but no arrows from that path emerging from that node. Z2 is a collider on the path (X -> Z2 <- Z1).
+- A *non-collider* of a path is an non-endpoint node on a path that is not a collider.
+  - Note that a node X can be a collider on one path from Z to Y and the same node can be a non-collider on a different path from Z to Y, so that clearly being a collider is not an intrinsic feature of a node relative to two other nodes, it also depends on the path (i.e. X is a collider on the path Z -> X <- U -> Y and a non-collider on the path Z -> X -> Y.
+- A *directed path* is a path where the arrows all go in the same direction.
+- A *back-door path* from node A to node B is a path from A to B that starts with an incoming arrow into A and ends with an incoming arrow into B (i.e. the path (X <- Z0 -> Z1 -> Z2) is a back-door path from X to Z2).
+  - A back-door path must contain at least one non-collider, although in general it may contain both colliders and non-colliders.
+- *d-separation / d-connection*: When two nodes are *d-separated*, they (or the variables they represent) are definitely independent. When two nodes are *d-connected*, they are possibly, or most likely, dependent.
+
+## Rules in Graphical Models
+
+**Rule 1: Conditional Independence in Chains**: Two variables, X and Y, are conditionally independent given Z, if there is only one unidirectional path between X and Y and Z is any set of variables that intercepts that path.
+<br />
+**Rule 2: Conditional Independence in Forks**: If a variable X is a common cause of variables Y and Z, and there is only one path between Y and Z, then Y and Z are independent conditional on X.
+<br />
+**Rule 3: Conditional Independence in Colliders**: If a variable Z is the collision node between two variables X and Y, and there is only one path between X and Y, then X and Y are unconditionally independent but are dependent conditional on Z and any descendants of Z. (This violates the assumption of "no correlation without causation".)
+
+<br />
+<br />
+
+A path between two nodes is *blocked* or *d-separated* by conditioning on a subset Z1 of the set of all nodes Z in the DAG if and only if one of two conditions is satisfied:
+<br />
+(i): the path contains a noncollider that has been conditioned on
+<br />
+(ii): it contains a collider such that (a) that collider has not been conditioned on and (b) that collider has no descendants that have been conditioned on.
+<br />
+
+
+## The do-operator
+
+The *do*-operator represents 'intervening on'/'changing' a variable. When intervening, one fixes the variable's vale. In contrast, when conditioning on a variable, we change nothing but merely focus to the subset of cases in which the variable takes the value we are interested in. $P(Y=y|X=x)$ reflects the population distribution of Y among individuals whose X value is x.  We change nothing in the system when conditioning. What changes, then, is the perception about the world, not the world itself. What changes, then, On the other hand, $P(Y=y|do(X=x))$ represents the population distribution of Y if *everyone in the population* had their X value fixed at x.
+
+$P(Y=y|do(X=x),Z=z)$ denotes the conditional probability of Y=y, given Z=z, in the distribution created by the intervention do(X=x).
+
+When intervening on a variable, one restricts the natural tendency of that variable to vary in response to other variables in nature. This amounts to performing a kind of surgery (also called graph surgery) on the graphical model, removing all edges directed in to that variable.
+
+## The causal effect rule
+
+The main question that arises in this context is whether one has to adjust for a variable or not. What is the set of variables Z that needs to be included in the adjustment formula? The intervention procedure (i.e. potential graph surgery) dictates that Z should coincide with the parents of X, because it is the influence of these parents that we neutralize when we fix X by external manipulations. Denoting the parents of X by PA(X):
+
+**The Causal Effect Rule:** Given a graph G in which a set of variables PA are designated as the parents of X, the causal effect of X on Y is given by
+$$P(Y=y|do(X=x))=\sum_{z} P(Y=y|X=x, PA=z)P(PA=z)$$
+where z ranges over all the combinations of values that variables in PA can take.
+
+However, in many settings conditioning on a variable's parents might not be feasible since some of these parents might be unobserved or inaccessible for  measurement. In those cases, one needs to find an alternative set of variables to adjust for. The following two criteria provide conditions that allow for computing a causal effect in the presence of unobserved confounders.
+
+## The Back-Door-Criterion
+
+The Back-Door-Criterion (BDC) for identifying the causal effect of a node X on a node Y is based on blocking all backdoor paths through conditioning on a subset of nodes.
+
+## The Front-Door-Criterion
+
+The Front-Door-Criterion (FDC), defined by Pearl (1995, 2000), aims at the identification of causal relationships by exploiting exogenous mediator variables M on the causal path. There are three assumptions that are needed in order to arrive at an unbiased estimate of the average treatment effect (ATE) of X on Y in presence of unobserved confounders U.
+<br />
+**Assumption 1:** The only way in which X influences Y is through M (i.e. in DAG, no arrows bypassing M between X and Y or, put differently, M should intercept all directed paths from X to Y). *M intercepts all directed paths from X to Y.*
+<br />
+**Assumption 2:** The relationship between X and M is not confounded by unobserved variables (i.e. there can be no back-door path between X and M). *There is no unblicked path from X to M.*
+<br />
+**Assumption 3:** Conditional on X, the relationship between M and Y is not confounded by unobserved variables (i.e. every back-door path between M and Y has to be blocked by X).*All batckdoor paths from M to Y are blocked by M.*
+
+Why does the FDC arrives at a causal estimate? The effect of X on M is identifiable as there is no backdoor path from X to M:
+$$P(M=m|do(X)) = P(M=m|X=x)$$
+In addition, the backdoor path from M to Y, namely M <- X <- U -> Y can be blocked by conditioning on X:
+$$P(Y=y|do(M=m)) = \sum_{x} P(Y=y|M=m,X=x)P(X=x)$$
+Chain these two effects together:
+$$P(Y=y|do(X=x)) = \sum_{m}  P(Y=y|do(M=m)) P(M=m|do(X=x))$$
+Distinguishing between the x from the first equation (capturing the effect ox X on M) and the one used for blocking the backdoor path from M to Y, the latter is merely an index of summation and will be denoted as x' in the final front-door formula:
+$$P(Y=y|do(X=x)) = \sum_{m} \sum_{x'} P(Y=y|M=m,X=x') P(X=x') P(M=m|X=x)$$
+
+```{r setup, error = FALSE, warning = FALSE, message = FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "C:/Users/stefan/OneDrive - bwedu/03_semester/Master_Seminar_Marketing")
+
+# remove scientific notation
+options(scipen=999)
+
+rm(list=ls())
+invisible(gc())
+
+library(tidyverse)
+library(reactable)
+library(systemfit)
+
+s <- 79
+set.seed(s)
+
+n <- 100000
+
+```
+
+```{r function_pval, error = FALSE, warning = FALSE, message = FALSE}
+
+pval <- function(coef, cv, se, df){
+  
+  q = (coef-cv) / se
+  
+  p <- pt(
+    q = q,
+    df = df,
+    lower.tail = !(q > 0)
+  )*2
+  
+  return(p)
+  
+}
+
+```
+
+
+# Simulations
+
+## Standard FDC
+### Set-up
+
+Let
+$U_i \sim  \mathcal{N}(0,1)$,
+$Z_i \sim  \mathcal{U}(0,1)$ and
+$\epsilon_{X_i}, \epsilon_{M_i}, \epsilon_{Y_i} \stackrel{i.i.d.}{\sim} \mathcal{N}(0,1)$ for a sample size of N = `r n` observations. Then, let
+$$
+X_i = 0.5U_i + \epsilon_{X_i} \\
+M_i = Z_iX_i + \epsilon_{M_i} \\
+Y_i = 0.5M_i + 0.5U_i + \epsilon_{Y_i}
+$$
+
+```{r standard_simulation, error = FALSE, warning = FALSE, message = FALSE}
+
+# unobserved confounder
+U <- rnorm(n, mean = 0, sd = 1)
+# random effect of X on mediator M
+Z <- runif(n, min = 0, max = 1)
+# Z <- 0.5  # alternative non-random effect of X on mediator M
+# errors
+e_X <- rnorm(n, mean = 0, sd = 1)
+e_M <- rnorm(n, mean = 0, sd = 1)
+e_Y <- rnorm(n, mean = 0, sd = 1)
+
+X <- 0.5*U + e_X
+M <- Z*X + e_M
+Y <- 0.5*M + 0.5*U + e_Y
+
+d <- data.frame(cbind(U, X, M, Y))
+
+```
+
+### Plot
+
+```{r standard_simulation_visual, error = FALSE, warning = FALSE, message = FALSE}
+
+ggplot(d, aes(x = X, y = Y)) +
+  geom_point(shape=1, color="#F6BF14", alpha=0.7) +
+  labs(x="Endogenous variable X", y="Dependent variable Y",
+       title="Relationship of X and Y",
+       caption="A visualisation of the simulated data") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(hjust = 0.5))
+
+```
+
+### Identification via Linear Regression
+#### Benchmark
+
+```{r standard_fdc_estimation_bench, error = FALSE, warning = FALSE, message = FALSE}
+
+# benchmark regression (incl. unobserved confounder)
+model_bench <- lm(Y ~ X + U, d)
+model_bench_summary <- summary(model_bench)
+
+model_bench_summary
+
+print(
+  paste0(
+    "p-value(beta_X = 0.25): ",
+    pval(
+      coef = model_bench_summary$coefficients[2,1],
+      cv = 0.25,
+      se = model_bench_summary$coefficients[2,2],
+      df = model_bench_summary$df[2]) %>%
+      round(4)
+  )
+)
+
+```
+
+#### Naive
+
+```{r standard_fdc_estimation_naive, error = FALSE, warning = FALSE, message = FALSE}
+
+# naive regression (excl. unobserved confounder)
+model_naive <- lm(Y ~ X, d)
+model_naive_summary <- summary(model_naive)
+
+model_naive_summary
+
+print(
+  paste0(
+    "p-value(beta_X = 0.25): ",
+    pval(
+      coef = model_naive_summary$coefficients[2,1],
+      cv = 0.25,
+      se = model_naive_summary$coefficients[2,2],
+      df = model_naive_summary$df[2]) %>%
+      round(4)
+  )
+)
+
+
+```
+
+#### FDC
+
+```{r standard_fdc_estimation_fd, error = FALSE, warning = FALSE, message = FALSE}
+
+# seemingly unrelated regression
+model_fd <- systemfit(list(first = M ~ X, second = Y ~ M + X), method = "SUR", data = d)
+model_fd_summary <- summary(model_fd)
+model_fd_summary
+
+# computation of ATE by multiplying coefficients
+ate_fd <- as.numeric(model_fd$coefficients["first_X"] * model_fd$coefficients["second_M"])
+# get variance-covariance matrix of coefficients
+ate_fd_cov <- model_fd$coefCov[c("first_X", "second_M"), c("first_X", "second_M")]
+# get jacobian for Delta-method
+jacobian <- as.matrix(rev(model_fd$coefficients[c("first_X", "second_M")]))
+# apply Delta-method to compute ATE standard error
+ate_fd_se <- sqrt(t(jacobian) %*% ate_fd_cov %*% jacobian)
+
+cat(
+  'ATE: ', round(ate_fd, 4),
+  '\nse(ATE): ', round(ate_fd_se, 4),
+  '\np-value(ATE = 0.25): ', round(pval(coef=ate_fd, cv=0.25, se=ate_fd_se, df=model_fd_summary$df[2]), 4)
+)
+
+```
+
+#### Direct Effect (all variables included)
+
+```{r standard_fdc_estimation_directeffect, error = FALSE, warning = FALSE, message = FALSE}
+
+# seemingly unrelated regression
+model_direct <- lm(Y ~ X + M + U, d)
+model_direct_summary <- summary(model_direct)
+model_direct_summary
+
+```
+
+
+## Additional observed confounder FDC
+### Set-up
+
+Let
+$D_i \sim  \mathcal{N}(0,1)$
+be an additional observed confounder that drives both selection into treatment and the mediator while affecting the outcome $Y_i$ as well. Then, let
+$$
+X_i = 0.5U_i + 0.5D_i + \epsilon_{X_i} \\
+M_i = Z_iX_i + 0.3D_i + \epsilon_{M_i} \\
+Y_i = 0.5M_i + 0.5U_i + 0.15D_i + \epsilon_{Y_i}
+$$
+
+```{r 2_simulation, error = FALSE, warning = FALSE, message = FALSE}
+
+# observed confounder
+D <- rnorm(n, mean = 0, sd = 1)
+
+X <- 0.5*U + 0.5*D + e_X
+M <- Z*X + 0.3*D + e_M
+Y <- 0.5*M + 0.5*U + 0.15*D + e_Y
+
+d <- data.frame(cbind(U, X, M, Y, D))
+
+```
+
+### Identification via Linear Regression
+#### Benchmark
+
+```{r 2_fdc_estimation_bench, error = FALSE, warning = FALSE, message = FALSE}
+
+# benchmark regression (incl. unobserved und observed confounders)
+model_bench <- lm(Y ~ X + U + D, d)
+model_bench_summary <- summary(model_bench)
+
+model_bench_summary
+
+```
+
+#### Naive
+
+```{r 2_fdc_estimation_naive, error = FALSE, warning = FALSE, message = FALSE}
+
+# naive regression (excl. unobserved confounder and incl. observed confounder)
+model_naive <- lm(Y ~ X + D, d)
+model_naive_summary <- summary(model_naive)
+
+model_naive_summary
+
+```
+
+#### FDC
+
+```{r 2_fdc_estimation_fd, error = FALSE, warning = FALSE, message = FALSE}
+
+model_fd <- systemfit(list(first = M ~ X + D, second = Y ~ M + X + D), method = "SUR", data = d)
+model_fd_summary <- summary(model_fd)
+model_fd_summary
+
+ate_fd <- as.numeric(model_fd$coefficients["first_X"] * model_fd$coefficients["second_M"])
+ate_fd_cov <- model_fd$coefCov[c("first_X", "second_M"), c("first_X", "second_M")]
+jacobian <- as.matrix(rev(model_fd$coefficients[c("first_X", "second_M")]))
+ate_fd_se <- sqrt(t(jacobian) %*% ate_fd_cov %*% jacobian)
+
+cat(
+  'ATE: ', round(ate_fd, 4),
+  '\nse(ATE): ', round(ate_fd_se, 4),
+  '\np-value(ATE = 0.25): ', round(pval(coef=ate_fd, cv=0.25, se=ate_fd_se, df=model_fd_summary$df[2]), 4)
+)
+
+```
+
+
+## Parallel mediator case FDC
+### Set-up
+
+In the 'parallel' mediator case, there are two mediators that both lie on their own separate directed path from X to Y. Put differently, there is a path flowing from X via M1 to Y and a second path from X via M2 to Y. Hence, when not controlling for / conditioning on both mediators, assumption 1 of the FDC would be violated as all directed paths from X to Y have to be intercepted.
+
+Assuming that additionally
+$Z_{1i}, Z_{2i} \stackrel{i.i.d.}{\sim} \mathcal{U}(0,1)$ and
+$\epsilon_{M_{1i}}, \epsilon_{M_{2i}} \stackrel{i.i.d.}{\sim} \mathcal{N}(0,1)$, then, let
+$$
+X_i = 0.5U_i + \epsilon_{X_i} \\
+M_{1i} = Z_{1i}X_i + \epsilon_{M_{1i}} \\
+M_{2i} = Z_{2i}X_i + \epsilon_{M_{2i}} \\
+Y_i = 0.5M_{1i} + 0.5M_{2i} + 0.5U_i + \epsilon_{Y_i}
+$$
+
+```{r 3_simulation, error = FALSE, warning = FALSE, message = FALSE}
+
+# random effects
+Z1 <- runif(n, min = 0, max = 1)
+Z2 <- runif(n, min = 0, max = 1)
+# errors
+e_M1 <- rnorm(n, mean = 0, sd = 1)
+e_M2 <- rnorm(n, mean = 0, sd = 1)
+
+X <- 0.5*U + e_X
+M1 <- Z1*X + e_M1
+M2 <- Z2*X + e_M2
+Y <- 0.5*M1 + 0.5*M2 + 0.5*U + e_Y
+
+d <- data.frame(cbind(U, X, M1, M2, Y))
+
+```
+
+### Identification via Linear Regression
+#### Benchmark
+
+```{r 3_fdc_estimation_bench, error = FALSE, warning = FALSE, message = FALSE}
+
+# benchmark regression
+model_bench <- lm(Y ~ X + U, d)
+model_bench_summary <- summary(model_bench)
+
+model_bench_summary
+
+```
+
+#### FDC
+
+```{r 3_fdc_estimation_fd, error = FALSE, warning = FALSE, message = FALSE}
+
+model_fd <- systemfit(list(first = M1 ~ X, second = M2 ~ X, third = Y ~ M1 + M2 + X), method = "SUR", data = d)
+model_fd_summary <- summary(model_fd)
+model_fd_summary
+
+# help filter vector
+f <- c("first_X", "second_X", "third_M1", "third_M2")
+ate_fd <- as.numeric(model_fd$coefficients["first_X"] * model_fd$coefficients["third_M1"] + model_fd$coefficients["second_X"] * model_fd$coefficients["third_M2"])
+ate_fd_cov <- model_fd$coefCov[f, f]
+jacobian <- as.matrix(model_fd$coefficients[c("third_M1", "third_M2", "first_X", "second_X")])
+ate_fd_se <- sqrt(t(jacobian) %*% ate_fd_cov %*% jacobian)
+
+cat(
+  'ATE: ', round(ate_fd, 4),
+  '\nse(ATE): ', round(ate_fd_se, 4),
+  '\np-value(ATE = 0.5): ', round(pval(coef=ate_fd, cv=0.5, se=ate_fd_se, df=model_fd_summary$df[2]), 4)
+)
+
+```
+
+
+## Sequential mediator case FDC
+### Set-up
+
+In contrast, the 'sequential' mediator case marks a somewhat nested structure where both mediators lie on the same and the only directed path from X to Y (i.e. there is a path flowing from X via M1 via M2 to Y. This relaxes the requirements to arrive at a causal estimate to some extent as one only needs to control for one of the two mediators being sufficient to intercept all directed paths from X to Y. Let
+$$
+X_i = 0.5U_i + \epsilon_{X_i} \\
+M_{1i} = Z_{1i}X_i + \epsilon_{M_{1i}} \\
+M_{2i} = Z_{2i}M_{1i} + \epsilon_{M_{2i}} \\
+Y_i = 0.5M_{2i} + 0.5U_i + \epsilon_{Y_i}
+$$
+
+```{r 4_simulation, error = FALSE, warning = FALSE, message = FALSE}
+
+M1 <- Z1*X + e_M1
+M2 <- Z2*M1 + e_M2
+Y <- 0.5*M2 + 0.5*U + e_Y
+
+d <- data.frame(cbind(U, X, M1, M2, Y))
+
+```
+
+### Identification via Linear Regression
+#### Benchmark
+
+```{r 4_fdc_estimation_bench, error = FALSE, warning = FALSE, message = FALSE}
+
+# benchmark regression
+model_bench <- lm(Y ~ X + U, d)
+model_bench_summary <- summary(model_bench)
+
+model_bench_summary
+
+```
+
+#### FDC using both mediators
+
+```{r 4_fdc_estimation_fd_both, error = FALSE, warning = FALSE, message = FALSE}
+
+model_fd <- systemfit(list(first = M1 ~ X, second = M2 ~ M1, third = Y ~ M1 + M2 + X), method = "SUR", data = d)
+model_fd_summary <- summary(model_fd)
+model_fd_summary
+
+# help filter vector
+f <- c("first_X", "second_M1", "third_M2")
+ate_fd <- as.numeric(model_fd$coefficients["first_X"] * model_fd$coefficients["second_M1"] * model_fd$coefficients["third_M2"])
+ate_fd_cov <- model_fd$coefCov[f, f]
+jacobian <- c(
+  model_fd$coefficients["second_M1"] * model_fd$coefficients["third_M2"],
+  model_fd$coefficients["first_X"] * model_fd$coefficients["third_M2"],
+  model_fd$coefficients["first_X"] * model_fd$coefficients["second_M1"]
+  )
+ate_fd_se <- sqrt(t(jacobian) %*% ate_fd_cov %*% jacobian)
+
+cat(
+  'ATE: ', round(ate_fd, 4),
+  '\nse(ATE): ', round(ate_fd_se, 4),
+  '\np-value(ATE = 0.125): ', round(pval(coef=ate_fd, cv=0.125, se=ate_fd_se, df=model_fd_summary$df[2]), 4)
+)
+
+```
+
+#### FDC using only the second mediator M2
+
+```{r 4_fdc_estimation_fd_singleM2, error = FALSE, warning = FALSE, message = FALSE}
+
+model_fd <- systemfit(list(first = M2 ~ X, third = Y ~ M2 + X), method = "SUR", data = d)
+model_fd_summary <- summary(model_fd)
+model_fd_summary
+
+# help filter vector
+f <- c("first_X", "third_M2")
+ate_fd <- as.numeric(model_fd$coefficients["first_X"] * model_fd$coefficients["third_M2"])
+ate_fd_cov <- model_fd$coefCov[f, f]
+jacobian <- as.matrix(model_fd$coefficients[c("third_M2", "first_X")])
+ate_fd_se <- sqrt(t(jacobian) %*% ate_fd_cov %*% jacobian)
+
+cat(
+  'ATE: ', round(ate_fd, 4),
+  '\nse(ATE): ', round(ate_fd_se, 4),
+  '\np-value(ATE = 0.125): ', round(pval(coef=ate_fd, cv=0.125, se=ate_fd_se, df=model_fd_summary$df[2]), 4)
+)
+
+```
+
+### Comparison
+
+| Simulation           | Annotation                                                                               |
+| :------------------- | :--------------------------------------------------------------------------------------- |
+| Standard FDC         | Causal effect is identified                                                              |
+| Two mediator case    | Causal effect is identified                                                              |
+| Nested mediator case | /                                                                                        |
+
+
