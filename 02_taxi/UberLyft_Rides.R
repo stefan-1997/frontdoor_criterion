@@ -2,7 +2,7 @@
 
 ##### Set-Up #####
 
-setwd("C:/Users/stefan/OneDrive - bwedu/03_semester/Master_Seminar_Marketing")
+setwd("C:/Users/stefan/OneDrive - bwedu/03_semester/Master_Seminar_Marketing/02_empirical/frontdoor_criterion/02_taxi")
 
 options(scipen=999)
 
@@ -29,10 +29,7 @@ df <- read.socrata(
   password = passw
 )
 
-# # draw random sample
-# set.seed(79)
-# df <- df %>%
-#   sample_n(10000)
+
 
 
 ##### Data preprocessing and storage #####

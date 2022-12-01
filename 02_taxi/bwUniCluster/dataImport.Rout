@@ -1,0 +1,263 @@
+
+R version 4.1.2 (2021-11-01) -- "Bird Hippie"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ######################## Uber and Lyft Rides in Chicago ########################
+> ############################### Data preparation################################
+> 
+> options(scipen=999)
+> 
+> rm(list=ls())
+> invisible(gc())
+> 
+> library(tidyverse)
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.2 ──
+✔ ggplot2 3.3.5      ✔ purrr   0.3.4 
+✔ tibble  3.1.6      ✔ dplyr   1.0.10
+✔ tidyr   1.2.1      ✔ stringr 1.4.0 
+✔ readr   2.1.3      ✔ forcats 0.5.2 
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+> library(RSocrata)
+> library(lubridate)
+Loading required package: timechange
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+> library(systemfit)
+Loading required package: Matrix
+
+Attaching package: ‘Matrix’
+
+The following objects are masked from ‘package:tidyr’:
+
+    expand, pack, unpack
+
+Loading required package: car
+Loading required package: carData
+
+Attaching package: ‘car’
+
+The following object is masked from ‘package:dplyr’:
+
+    recode
+
+The following object is masked from ‘package:purrr’:
+
+    some
+
+Loading required package: lmtest
+Loading required package: zoo
+
+Attaching package: ‘zoo’
+
+The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+
+Please cite the 'systemfit' package as:
+Arne Henningsen and Jeff D. Hamann (2007). systemfit: A Package for Estimating Systems of Simultaneous Equations in R. Journal of Statistical Software 23(4), 1-40. http://www.jstatsoft.org/v23/i04/.
+
+If you have questions, suggestions, or comments regarding the 'systemfit' package, please use a forum or 'tracker' at systemfit's R-Forge site:
+https://r-forge.r-project.org/projects/systemfit/
+> 
+> ##### Import authentication #####
+> 
+> source("Chicago_Key.R")
+> 
+> 
+> ##### API call #####
+> 
+> # create vector to store all URLs for API call
+> start_date <- mdy("06-30-19")
+> end_date <- mdy("09-30-19")
+> n_days <- interval(start_date, end_date) / days(1)
+> timestamps <- format(start_date + days(0:n_days), format='%Y-%m-%dT00:00:00')
+> t_len <- length(timestamps)
+> urls <- paste0(
++   "https://data.cityofchicago.org/resource/m6dm-c72p.json?$where=trip_start_timestamp between '",
++   timestamps[1:(t_len-1)],
++   "' and '",
++   timestamps[2:t_len],
++   "' and fare >= 2.5 and fare <= 50 and pickup_community_area is not null and dropoff_community_area is not null and trip_seconds is not null and trip_miles is not null and pickup_census_tract is not null and dropoff_census_tract is not null"
++   )
+> 
+> 
+> # get data for first day
+> df <- read.socrata(
++   url = urls[1],
++   app_token = app_t,
++   email = email,
++   password = passw
++ )
+> 
+> df <- df %>%
++   select(trip_id, trip_start_timestamp, trip_end_timestamp, trip_seconds, trip_miles, pickup_community_area, dropoff_community_area, fare, tip, trip_total, shared_trip_authorized, trips_pooled)
+> 
+> write.csv(df, "data/chicagoRidesFullSample.csv", row.names = FALSE)
+> 
+> chicagoRidesFullSample <- df
+> 
+> print(
++   paste0(
++     'Current number of rows: ', nrow(chicagoRidesFullSample))
++ )
+[1] "Current number of rows: 200344"
+> 
+> 
+> rm(df)
+> invisible(gc())
+> 
+> # append other days
+> for (i in 2:(t_len-1)) {
++   
++   df <- read.socrata(
++     url = urls[i],
++     app_token = app_t,
++     email = email,
++     password = passw
++   )
++   
++   df <- df %>%
++     select(trip_id, trip_start_timestamp, trip_end_timestamp, trip_seconds, trip_miles, pickup_community_area, dropoff_community_area, fare, tip, trip_total, shared_trip_authorized, trips_pooled)
++   
++   chicagoRidesFullSample <- rbind(chicagoRidesFullSample, df)
++   
++   rm(df)
++   invisible(gc())
++   
++   print(
++     paste0(
++       'Current number of rows: ', nrow(chicagoRidesFullSample))
++   )
++   
++   if (i == 20){
++     write.csv(df, "data/chicagoRidesFullSample.csv", row.names = FALSE)
++   }
++   
++ }
+[1] "Current number of rows: 340434"
+[1] "Current number of rows: 503035"
+[1] "Current number of rows: 684549"
+[1] "Current number of rows: 879030"
+[1] "Current number of rows: 1074570"
+[1] "Current number of rows: 1287831"
+[1] "Current number of rows: 1448555"
+[1] "Current number of rows: 1582813"
+[1] "Current number of rows: 1732320"
+[1] "Current number of rows: 1908717"
+[1] "Current number of rows: 2098040"
+[1] "Current number of rows: 2347437"
+[1] "Current number of rows: 2643981"
+[1] "Current number of rows: 2850161"
+[1] "Current number of rows: 3008916"
+[1] "Current number of rows: 3179126"
+[1] "Current number of rows: 3364733"
+[1] "Current number of rows: 3584240"
+[1] "Current number of rows: 3864963"
+[1] "Current number of rows: 4177917"
+[1] "Current number of rows: 4386635"
+[1] "Current number of rows: 4533892"
+[1] "Current number of rows: 4688604"
+[1] "Current number of rows: 4857325"
+[1] "Current number of rows: 5049812"
+[1] "Current number of rows: 5287278"
+[1] "Current number of rows: 5574514"
+[1] "Current number of rows: 5773917"
+[1] "Current number of rows: 5920675"
+[1] "Current number of rows: 6073201"
+[1] "Current number of rows: 6251976"
+[1] "Current number of rows: 6460227"
+[1] "Current number of rows: 6719744"
+[1] "Current number of rows: 7009365"
+[1] "Current number of rows: 7228801"
+[1] "Current number of rows: 7397533"
+[1] "Current number of rows: 7562134"
+[1] "Current number of rows: 7739558"
+[1] "Current number of rows: 7938753"
+[1] "Current number of rows: 8186775"
+[1] "Current number of rows: 8476113"
+[1] "Current number of rows: 8668746"
+[1] "Current number of rows: 8827057"
+[1] "Current number of rows: 8980820"
+[1] "Current number of rows: 9149445"
+[1] "Current number of rows: 9338598"
+[1] "Current number of rows: 9576684"
+[1] "Current number of rows: 9851902"
+[1] "Current number of rows: 10037125"
+[1] "Current number of rows: 10181563"
+[1] "Current number of rows: 10347400"
+[1] "Current number of rows: 10522010"
+[1] "Current number of rows: 10716035"
+[1] "Current number of rows: 10958637"
+[1] "Current number of rows: 11234943"
+[1] "Current number of rows: 11421209"
+[1] "Current number of rows: 11570348"
+[1] "Current number of rows: 11714830"
+[1] "Current number of rows: 11869232"
+[1] "Current number of rows: 12047332"
+[1] "Current number of rows: 12273433"
+[1] "Current number of rows: 12527490"
+[1] "Current number of rows: 12746097"
+[1] "Current number of rows: 12880417"
+[1] "Current number of rows: 13024240"
+[1] "Current number of rows: 13171075"
+[1] "Current number of rows: 13355091"
+[1] "Current number of rows: 13574363"
+[1] "Current number of rows: 13833651"
+[1] "Current number of rows: 14011685"
+[1] "Current number of rows: 14150814"
+[1] "Current number of rows: 14309741"
+[1] "Current number of rows: 14484139"
+[1] "Current number of rows: 14677448"
+[1] "Current number of rows: 14940008"
+[1] "Current number of rows: 15232632"
+[1] "Current number of rows: 15440238"
+[1] "Current number of rows: 15591904"
+[1] "Current number of rows: 15752256"
+[1] "Current number of rows: 15922461"
+[1] "Current number of rows: 16116219"
+[1] "Current number of rows: 16369346"
+[1] "Current number of rows: 16662164"
+[1] "Current number of rows: 16865067"
+[1] "Current number of rows: 17014804"
+[1] "Current number of rows: 17171823"
+[1] "Current number of rows: 17345361"
+[1] "Current number of rows: 17537830"
+[1] "Current number of rows: 17808974"
+[1] "Current number of rows: 18088308"
+[1] "Current number of rows: 18286364"
+> 
+> 
+> write.csv(chicagoRidesFullSample, "data/chicagoRidesFullSample.csv", row.names = FALSE)
+>   
+>   
+> 
+>   
+>   
+>   
+> 
+> proc.time()
+     user    system   elapsed 
+ 3769.327   210.639 11080.198 

@@ -1,0 +1,132 @@
+
+R version 4.1.2 (2021-11-01) -- "Bird Hippie"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ######################## Uber and Lyft Rides in Chicago ########################
+> ############################### Data preparation ###############################
+> 
+> options(scipen=999)
+> 
+> rm(list=ls())
+> invisible(gc())
+> 
+> library(tidyverse)
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.2 ──
+✔ ggplot2 3.3.5      ✔ purrr   0.3.4 
+✔ tibble  3.1.6      ✔ dplyr   1.0.10
+✔ tidyr   1.2.1      ✔ stringr 1.4.0 
+✔ readr   2.1.3      ✔ forcats 0.5.2 
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+> library(lubridate)
+Loading required package: timechange
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+> 
+> ##### Read in data #####
+> 
+> df <- readr::read_csv("data/chicagoRidesFullSample.csv")
+Rows: 18286364 Columns: 12
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr  (1): trip_id
+dbl  (8): trip_seconds, trip_miles, pickup_community_area, dropoff_community...
+lgl  (1): shared_trip_authorized
+dttm (2): trip_start_timestamp, trip_end_timestamp
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+> 
+> 
+> ##### Data cleaning #####
+> 
+> ### convert some variables to numeric variables
+> df <- df %>%
++   mutate(
++     trip_seconds = as.numeric(trip_seconds),
++     trip_miles = as.numeric(trip_miles),
++     fare = as.numeric(fare),
++     tip = as.numeric(tip),
++     trip_total = as.numeric(trip_total),
++     trips_pooled = as.numeric(trips_pooled)
++   )
+> 
+> 
+> ### define variables of interest
+> 
+> # treatment variable X (sharing authorized)
+> df$shared_trip_authorized <- ifelse(df$shared_trip_authorized == "FALSE", 0, 1)
+> 
+> # mediator variable M (ride actually shared)
+> df$shared_trip <- ifelse(df$trips_pooled > 1, 1, 0)
+> 
+> # tip as share of fare
+> df$tip_share <- df$tip / df$fare
+> 
+> # tip dummy (extensive margin)
+> df$tip_dummy <- ifelse(df$tip > 0, 1, 0)
+> 
+> # inverse hyperbolic sine transformation of tip (intensive margin)
+> df$tip_asinh <- asinh(df$tip)
+> 
+> # inverse hyperbolic sine transformation of tip as share of fare (intensive margin)
+> df$tip_share_asinh <- asinh(df$tip_share)
+> 
+> 
+> ### define control variables
+> 
+> # origin–destination community pairs
+> pickup <- unique(df[c("pickup_community_area")])$pickup_community_area
+> dropoff <- unique(df[c("dropoff_community_area")])$dropoff_community_area
+> setdiff(pickup, dropoff)
+numeric(0)
+> setdiff(dropoff, pickup)
+numeric(0)
+> 
+> df$origin_destination_pairs <- do.call(paste, c(df[c("pickup_community_area", "dropoff_community_area")], sep="-"))
+> 
+> # date
+> df$trip_start_date <- as.Date(df$trip_start_timestamp, tz = "")
+> # hour
+> df$trip_hour <- as.numeric(format(df$trip_start_timestamp, "%H"))
+> # weekday
+> df$trip_weekday <- wday(df$trip_start_date, week_start = 1)
+> # weekday-hour
+> df$two_hour_time_slot <- do.call(paste, c(df[c("trip_weekday", "trip_hour")], sep="-"))
+> 
+> 
+> 
+> # write to csv
+> write.csv(df, "data/chicagoRidesCleaned.csv", row.names = FALSE)
+> 
+> 
+> 
+> 
+> # # two hour time slot
+> # df$trip_two_hour_bracket <- floor(df$trip_hour / 2)
+> # df$two_hour_time_slot <- do.call(paste, c(df[c("trip_start_date", "trip_two_hour_bracket")], sep="-"))
+> 
+> proc.time()
+   user  system elapsed 
+549.707  33.516 549.093 
