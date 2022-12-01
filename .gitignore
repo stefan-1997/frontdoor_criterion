@@ -32,3 +32,8 @@
 # project specific files
 **/Chicago_Key.R
 
+# project specific folders
+01_simulations/visualisation/
+02_taxi/data/
+02_taxi/visualisation/
+
