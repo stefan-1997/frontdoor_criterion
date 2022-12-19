@@ -1,4 +1,4 @@
-######################## Uber and Lyft Rides in Chicago ########################
+################### Initial Local Analysis of Uber Lyft Rides###################
 
 ##### Set-Up #####
 
@@ -16,7 +16,7 @@ library(systemfit)
 
 ##### Import authentication #####
 
-source("Chicago_Key.R")
+source("01_local/Chicago_Key.R")
 
 
 ##### API call #####
@@ -104,7 +104,9 @@ df$trip_weekday <- wday(df$trip_start_date, week_start = 1)
 
 
 # write to csv
-write.csv(df, "chicagoRides.csv", row.names = FALSE)
+write.csv(df, "03_data/chicagoRides.csv", row.names = FALSE)
+
+
 
 ##### Descriptives and visualisation #####
 
@@ -120,7 +122,7 @@ unique(df[c("tip", "tip_asinh")]) %>%
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(hjust = 0.5))
 
-ggsave("asinh_tip_scatterplot.png", plot=last_plot())
+ggsave("04_visualisation/asinh_tip_scatterplot.png", plot=last_plot())
 
 # histogram level
 df %>%
@@ -131,6 +133,8 @@ df %>%
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(hjust = 0.5))
 
+ggsave("04_visualisation/tip_histogram.png", plot=last_plot())
+
 # histogram asinh
 df %>%
   ggplot(mapping = aes(x=tip_asinh)) +
@@ -139,6 +143,8 @@ df %>%
        title="Histogram - Inverse Hyperbolic Sine of Tip") +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(hjust = 0.5))
+
+ggsave("04_visualisation/asinh_tip_histogram.png", plot=last_plot())
 
 
 # descriptives full sample

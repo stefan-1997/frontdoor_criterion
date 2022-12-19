@@ -6,7 +6,6 @@ options(scipen=999)
 rm(list=ls())
 invisible(gc())
 
-setwd("C:/Users/stefan/OneDrive - bwedu/03_semester/Master_Seminar_Marketing/02_empirical/frontdoor_criterion/02_taxi")
 
 library(tidyverse)
 library(biglm)
@@ -14,7 +13,7 @@ library(biglm)
 df <- readr::read_csv("data/chicagoRidesCleaned.csv")
 
 df <- df %>%
-  sample_n(8338)
+  sample_n(3500000)
 
 pval <- function(coef, cv, se, df){
   
@@ -83,21 +82,21 @@ df$origin_destination_pairs <- as.factor(df$origin_destination_pairs)
 
 # first stage
 f1 <- formula(shared_trip ~ shared_trip_authorized + fare + trip_start_date + trip_hour + trip_weekday_hour + origin_destination_pairs)
-f1 <- formula(shared_trip ~ shared_trip_authorized + fare + trip_start_date + trip_hour + origin_destination_pairs)
+# f1 <- formula(shared_trip ~ shared_trip_authorized + fare + trip_start_date + trip_hour + origin_destination_pairs)
 # second stage
 f2 <- formula(tip_dummy ~ shared_trip + shared_trip_authorized + fare + trip_start_date + trip_hour + trip_weekday_hour + origin_destination_pairs)
-f2 <- formula(tip_dummy ~ shared_trip + shared_trip_authorized + fare + trip_start_date + trip_hour + origin_destination_pairs)
+# f2 <- formula(tip_dummy ~ shared_trip + shared_trip_authorized + fare + trip_start_date + trip_hour + origin_destination_pairs)
 
 # naive
 f3 <- formula(tip_dummy ~ shared_trip_authorized + fare + trip_start_date + trip_hour + trip_weekday_hour + origin_destination_pairs)
-f3 <- formula(tip_dummy ~ shared_trip_authorized + fare + trip_start_date + trip_hour + origin_destination_pairs)
+# f3 <- formula(tip_dummy ~ shared_trip_authorized + fare + trip_start_date + trip_hour + origin_destination_pairs)
 
 
 
 ### definition of criteria ###
 
 # define chunk size
-n <- 1000
+n <- 110000
 k <- ceiling(n_sample/n)
 
 
@@ -225,6 +224,10 @@ for (i in 2:(k-1)){
   )
   
   collection <- rbind(collection, new_collection)
+
+  write.csv(collection, "data/estimationResultsMajor.csv", row.names = FALSE)
+
+  print(model_f1[["n"]])
   
 }
 
@@ -292,7 +295,7 @@ new_collection <- c(
 collection <- rbind(collection, new_collection)
 
 
-write.csv(collection, "data/estimationResults.csv", row.names = FALSE)
+write.csv(collection, "data/estimationResultsMajor.csv", row.names = FALSE)
 
 
 

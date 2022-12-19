@@ -74,8 +74,3 @@ df$trip_weekday_hour <- do.call(paste, c(df[c("trip_weekday", "trip_hour")], sep
 write.csv(df, "data/chicagoRidesCleaned.csv", row.names = FALSE)
 
 
-
-
-# # two hour time slot
-# df$trip_two_hour_bracket <- floor(df$trip_hour / 2)
-# df$two_hour_time_slot <- do.call(paste, c(df[c("trip_start_date", "trip_two_hour_bracket")], sep="-"))

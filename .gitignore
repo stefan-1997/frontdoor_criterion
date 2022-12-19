@@ -31,9 +31,10 @@
 
 # project specific files
 **/Chicago_Key.R
+**/X_slurmscript.sh
 
 # project specific folders
 01_simulations/visualisation/
-02_taxi/data/
-02_taxi/visualisation/
+02_taxi/03_data/
+02_taxi/04_visualisation/
 
