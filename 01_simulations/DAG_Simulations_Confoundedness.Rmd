@@ -61,7 +61,9 @@ b <- 0.5
 
 ```
 
-![FDC-DAG: General case](visualisation/fdc_DAG.JPG)
+<center>
+![FDC-DAG: General case](04_visualisation/fdc_DAG.JPG)
+</center>
 
 # Simulations
 
