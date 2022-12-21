@@ -1,6 +1,6 @@
 # frontdoor_criterion
 This repository hosts all the code related to my master seminar thesis 'Causal inference through the front-door' at the chair of Marketing of Prof. Dr. Dominik Papies at the Faculty of Economics and Social Sciences of the University of Tübingen.
-Generally this repository is divided into sections:
+Generally this repository is divided into two parts:
 - **01_simulations**: hosts R scripts that challenge the FDC using simulated data
   - *DAG_Simulations.html*: provides a theoretical and empirical introduction into the Front-Door Criterion (FDC).
   - *DAG_Simulations_Confoundedness.html*: examines violations of the FDCs identifying assumptions using simulated data.
