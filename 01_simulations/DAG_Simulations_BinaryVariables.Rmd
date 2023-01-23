@@ -1,0 +1,313 @@
+---
+title: 'Master Seminar in Marketing'
+subtitle: 'Simulations with binary variables'
+author: "Stefan Glaisner (4222790)"
+date: "`r format(Sys.Date(), '%d-%m-%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+
+# Introduction
+
+This notebook examines the FDC in settings with binary variables for treatment, mediator and outcome. 
+
+```{r setup, error = FALSE, warning = FALSE, message = FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "C:/Users/stefan/OneDrive - bwedu/03_semester/Master_Seminar_Marketing/02_empirical/frontdoor_criterion/01_simulations")
+
+options(scipen=0)
+
+rm(list=ls())
+invisible(gc())
+
+library(tidyverse)
+library(systemfit)
+library(latex2exp)
+library(estimatr)
+
+s <- 790
+set.seed(s)
+
+n <- 100000
+
+pval <- function(coef, cv, se, df){
+  t <- (coef-cv) / se
+  p <- 2 * pt(abs(t), n, lower=FALSE)
+  return(p)
+}
+
+sigmoid <- function(x){
+  p <- 1/(1 + exp(-x))
+  return(p)
+}
+
+```
+
+
+# Binary treatment and mediator - continuous outcome
+
+## DGP
+
+Let
+$Z_i, U_i \sim  \mathcal{N}(0,1)$
+be an observed and unobserved confounder in this setting. They both drive both selection into treatment and outcome values. $Z$ also has a causal and observed effect on mediator $M$. In addition, let
+$\epsilon_{X_i}, \epsilon_{M_i}, \epsilon_{Y_i} \stackrel{i.i.d.}{\sim} \mathcal{N}(0,1)$.
+The DGP can then be defined as:
+$$
+X_i = 1[ \beta U_i + \beta Z_i + \beta \epsilon_{X_i} > 0 ] \\
+M_i = 1[ \beta Z_i + X_i + \beta \epsilon_{M_i} > 0.8 ] \\
+Y_i = \beta Z_i + \beta U_i + 0.5 M_i + \epsilon_{Y_i}
+$$
+
+We fix $\beta$ to 0.25 for this simulation.
+
+```{r simulation, error = FALSE, warning = FALSE, message = FALSE}
+
+# unobserved confounder
+U <- rnorm(n, mean=0, sd=1)
+# observed confounder
+Z <- rnorm(n, mean=0, sd=1)
+
+e_X <- rnorm(n, mean=0, sd=1)
+e_M <- rnorm(n, mean=0, sd=1)
+e_Y <- rnorm(n, mean=0, sd=1)
+
+# fixed effect size
+b <- 0.25
+
+X <- 1*(b*U + b*Z + b*e_X > 0)
+M <- 1*(b*Z + X + b*e_M > 0.8)
+Y <- b*Z + b*U + 0.5*M + e_Y
+
+
+# X <- rbinom(n, 1, sigmoid(b*U + b*Z))
+# M <- rbinom(n, 1, sigmoid(b*Z + X))
+# Y <- b*Z + b*U + 0.5*M + e_Y
+# Y <- rbinom(n, 1, sigmoid(b*Z + b*U + M))
+
+table(X, M) / n
+
+```
+
+## Benchmark
+
+```{r fdc_estimation_bench, error = FALSE, warning = FALSE, message = FALSE}
+
+# benchmark regression (incl. unobserved and observed confounders)
+model_bench <- lm_robust(Y ~ X + U + Z)
+model_bench_summary <- summary(model_bench)
+
+model_bench_summary
+
+```
+
+## Naive
+
+```{r fdc_estimation_naive, error = FALSE, warning = FALSE, message = FALSE}
+
+# naive regression (excl. unobserved confounder and incl. observed confounder)
+model_naive <- lm(Y ~ X + Z)
+model_naive_summary <- summary(model_naive, vcov = "hetero")
+
+model_naive_summary
+
+```
+
+## FDC
+
+```{r fdc_estimation_fd, error = FALSE, warning = FALSE, message = FALSE}
+
+model_fd <- systemfit(list(first = M ~ X + Z, second = Y ~ M + X + Z), method = "SUR")
+model_fd_summary <- summary(model_fd, vcov = "hetero")
+model_fd_summary
+
+ate_fd <- as.numeric(model_fd$coefficients["first_X"] * model_fd$coefficients["second_M"])
+ate_fd_cov <- model_fd$coefCov[c("first_X", "second_M"), c("first_X", "second_M")]
+jacobian <- as.matrix(rev(model_fd$coefficients[c("first_X", "second_M")]))
+ate_fd_se <- sqrt(t(jacobian) %*% ate_fd_cov %*% jacobian)
+
+cat(
+  'ATE:       ', round(ate_fd, 4),
+  '\nse(ATE): ', round(ate_fd_se, 4),
+  '\np-value: ', round(pval(coef=ate_fd, cv=model_bench_summary$coefficients["X",1], se=ate_fd_se, df=model_fd_summary$df[2]), 4)
+)
+
+```
+
+## Direct Effect (all variables included)
+
+Note that if we include all variables as independent variables in the model of our conditional expectation function (CEF) of outcome $Y$, then the estimated coefficient for $X$ is not statistically significantly different from zero as its effect is already fully absorbed (or mediated) by $M$.
+
+```{r fdc_estimation_directeffects, error = FALSE, warning = FALSE, message = FALSE}
+
+model_direct <- lm(Y ~ X + M + Z + U)
+model_direct_summary <- summary(model_direct)
+model_direct_summary
+
+```
+
+# Binary treatment and mediator - continuous outcome + Violation of full support
+
+## DGP
+
+Let's now additionally introduce a violation of the full support requirement $P(X | M) > 0$ such that $M$ cannot evaluate to 1 if $X$ is 0. This basically represents the scenario in the taxi application by Bellemare et al. (2020). This is easily implemented by changing the definition of $M$ as follows:
+$$
+M_i = 1[ \beta Z_i + X_i + \beta \epsilon_{M_i} > 0.8 ] \times X_i
+$$
+
+```{r simulation_supportvio, error = FALSE, warning = FALSE, message = FALSE}
+
+# unobserved confounder
+U <- rnorm(n, mean=0, sd=1)
+# observed confounder
+Z <- rnorm(n, mean=0, sd=1)
+
+e_X <- rnorm(n, mean=0, sd=1)
+e_M <- rnorm(n, mean=0, sd=1)
+e_Y <- rnorm(n, mean=0, sd=1)
+
+# fixed effect size
+b <- 0.25
+
+X <- 1*(b*U + b*Z + b*e_X > 0)
+M <- 1*(b*Z + X + b*e_M > 0.8)*X
+Y <- b*Z + b*U + 0.5*M + e_Y
+
+table(X, M) / n
+
+```
+
+## Benchmark
+
+```{r fdc_estimation_bench_supportvio, error = FALSE, warning = FALSE, message = FALSE}
+
+# benchmark regression (incl. unobserved and observed confounders)
+model_bench <- lm_robust(Y ~ X + U + Z)
+model_bench_summary <- summary(model_bench)
+
+model_bench_summary
+
+```
+
+## Naive
+
+```{r fdc_estimation_naive_supportvio, error = FALSE, warning = FALSE, message = FALSE}
+
+# naive regression (excl. unobserved confounder and incl. observed confounder)
+model_naive <- lm(Y ~ X + Z)
+model_naive_summary <- summary(model_naive, vcov = "hetero")
+
+model_naive_summary
+
+```
+
+## FDC
+
+```{r fdc_estimation_fd_supportvio, error = FALSE, warning = FALSE, message = FALSE}
+
+model_fd <- systemfit(list(first = M ~ X + Z, second = Y ~ M + X + Z), method = "SUR")
+model_fd_summary <- summary(model_fd, vcov = "hetero")
+model_fd_summary
+
+ate_fd <- as.numeric(model_fd$coefficients["first_X"] * model_fd$coefficients["second_M"])
+ate_fd_cov <- model_fd$coefCov[c("first_X", "second_M"), c("first_X", "second_M")]
+jacobian <- as.matrix(rev(model_fd$coefficients[c("first_X", "second_M")]))
+ate_fd_se <- sqrt(t(jacobian) %*% ate_fd_cov %*% jacobian)
+
+cat(
+  'ATE:       ', round(ate_fd, 4),
+  '\nse(ATE): ', round(ate_fd_se, 4),
+  '\np-value: ', round(pval(coef=ate_fd, cv=model_bench_summary$coefficients["X",1], se=ate_fd_se, df=model_fd_summary$df[2]), 4)
+)
+
+```
+
+# Binary treatment, mediator and outcome
+
+## DGP
+
+Going back to the initial DGP, I now introduce a second slight adaption to the initial set-up by defining $Y$ as a binary variable as well. To sum up, all three main variables of interest (treatment $X$, mediator $M$ and outcome $Y$) can now be represented as dummy variables. The definition of outcome $Y$ can be adjusted as follows:
+$$
+Y_i = 1[ \beta Z_i + \beta U_i + 0.5 M_i + \beta \epsilon_{Y_i} > 0.2]
+$$
+
+```{r simulation_binary, error = FALSE, warning = FALSE, message = FALSE}
+
+U <- rnorm(n, mean=0, sd=1)
+Z <- rnorm(n, mean=0, sd=1)
+
+e_X <- rnorm(n, mean=0, sd=1)
+e_M <- rnorm(n, mean=0, sd=1)
+e_Y <- rnorm(n, mean=0, sd=1)
+
+
+X <- 1*(b*U + b*Z + b*e_X > 0)
+M <- 1*(b*Z + X + b*e_M > 0.8)
+# Y <- 1*(b*Z + b*U + 0.5*M + e_Y > 0.2)
+Y <- rbinom(n, 1, sigmoid(b*Z + b*U + 0.5*M))
+
+table(X, M) / n
+table(X, Y) / n
+table(M, Y) / n
+
+```
+
+## Benchmark
+
+```{r fdc_estimation_bench_binary, error = FALSE, warning = FALSE, message = FALSE}
+
+model_bench <- lm_robust(Y ~ X + U + Z)
+model_bench_summary <- summary(model_bench)
+
+model_bench_summary
+
+```
+
+## Naive
+
+```{r fdc_estimation_naive_binary, error = FALSE, warning = FALSE, message = FALSE}
+
+model_naive <- lm(Y ~ X + Z)
+model_naive_summary <- summary(model_naive, vcov = "hetero")
+
+model_naive_summary
+
+```
+
+## FDC
+
+```{r fdc_estimation_fd_binary, error = FALSE, warning = FALSE, message = FALSE}
+
+model_fd <- systemfit(list(first = M ~ X + Z, second = Y ~ M + X + Z), method = "SUR")
+model_fd_summary <- summary(model_fd, vcov = "hetero")
+model_fd_summary
+
+ate_fd <- as.numeric(model_fd$coefficients["first_X"] * model_fd$coefficients["second_M"])
+ate_fd_cov <- model_fd$coefCov[c("first_X", "second_M"), c("first_X", "second_M")]
+jacobian <- as.matrix(rev(model_fd$coefficients[c("first_X", "second_M")]))
+ate_fd_se <- sqrt(t(jacobian) %*% ate_fd_cov %*% jacobian)
+
+cat(
+  'ATE:       ', round(ate_fd, 4),
+  '\nse(ATE): ', round(ate_fd_se, 4),
+  '\np-value: ', round(pval(coef=ate_fd, cv=model_bench_summary$coefficients["X",1], se=ate_fd_se, df=model_fd_summary$df[2]), 4)
+)
+
+```
+
+Also in this hypothetical setting, the FDC recovers the true causal effect. Differently to the simulations where we considered only continuous variables (*DAG_Simulations.html* or *DAG_Simulations_Confoundedness.html*), the true causal effect cannot be inferred directly from the DGP itself. However, having the benchmark model at hand, we can at least estimate the true parameter of interest. Also applying the standard elasticity formulas shows that the estimate of the benchmark and the FDC model are quite similar.
+
+```{r fdc_estimation_binary_deepdive, error = FALSE, warning = FALSE, message = FALSE}
+
+# elasticity for benchmark model
+exp(model_bench_summary$coefficients["X",1]) - 1
+# elasticity for aggregated FDC estimate
+exp(ate_fd) - 1
+# product of separate elasticities of both stages of the FDC model
+as.numeric((exp(model_fd$coefficients["first_X"]) - 1)*(exp(model_fd$coefficients["second_M"]) - 1))
+
+```
