@@ -10,9 +10,14 @@ setwd("C:/Users/stefan/OneDrive - bwedu/03_semester/Master_Seminar_Marketing/02_
 library(tidyverse)
 library(latex2exp)
 
+# # extensive margin
+# results <- readr::read_csv("03_data/estimationResultsBaseXXL.csv")
+# results_alt <- readr::read_csv("03_data/estimationResultsAlternativeXXL.csv")
 
-results <- readr::read_csv("03_data/estimationResultsBaseXXL.csv")
-results_alt <- readr::read_csv("03_data/estimationResultsAlternativeXXL.csv")
+# intensive margin
+results <- readr::read_csv("03_data/estimationResultsBasetipAsinh.csv")
+results_alt <- readr::read_csv("03_data/estimationResultsAlternativetipAsinh.csv")
+
 
 tail(results)
 tail(results_alt)
@@ -49,3 +54,14 @@ plot_02
 ggsave("04_visualisation/FDC_ATTs_by_Sample.png", plot=plot_02)
 
 
+
+# # elasticity estimation
+# y <- 0.659*0.842 + 0.208*0.158
+# y <- 0.208
+# beta <- -0.008
+# beta <- -0.127
+# beta * (sqrt(y^2+1)) / y
+# alpha <- 0.113
+# var_beta <- 0.001^2
+# 
+# sinh(alpha + beta) / sinh(alpha) - 1
