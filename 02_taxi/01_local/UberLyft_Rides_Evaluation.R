@@ -14,13 +14,15 @@ library(latex2exp)
 # results <- readr::read_csv("03_data/estimationResultsBaseXXL.csv")
 # results_alt <- readr::read_csv("03_data/estimationResultsAlternativeXXL.csv")
 
-# intensive margin
-results <- readr::read_csv("03_data/estimationResultsBasetipAsinh.csv")
-results_alt <- readr::read_csv("03_data/estimationResultsAlternativetipAsinh.csv")
+# # intensive margin
+# results <- readr::read_csv("03_data/estimationResultsBasetipAsinh.csv")
+# results_alt <- readr::read_csv("03_data/estimationResultsAlternativetipAsinh.csv")
 
+# different elasticities
+results_asinh <- readr::read_csv("03_data/estimationResultsAlternativetipAsinh.csv")
+results_level <- readr::read_csv("03_data/estimationResultsAlternativetipLevel.csv")
+results_log <- readr::read_csv("03_data/estimationResultsAlternativetipLog.csv")
 
-tail(results)
-tail(results_alt)
 
 plot_01_data <- cbind(
   results_alt %>%
