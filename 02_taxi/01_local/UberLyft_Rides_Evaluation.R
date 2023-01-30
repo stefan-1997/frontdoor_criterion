@@ -19,6 +19,7 @@ library(latex2exp)
 # results_alt <- readr::read_csv("03_data/estimationResultsAlternativetipAsinh.csv")
 
 # different elasticities
+results_asinh_base <- readr::read_csv("03_data/estimationResultsBasetipAsinh.csv")
 results_asinh <- readr::read_csv("03_data/estimationResultsAlternativetipAsinh.csv")
 results_level <- readr::read_csv("03_data/estimationResultsAlternativetipLevel.csv")
 results_log <- readr::read_csv("03_data/estimationResultsAlternativetipLog.csv")
