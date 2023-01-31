@@ -20,10 +20,23 @@ pval <- function(coef, cv, se, df){
   return(p)
 }
 
+elast <- function(beta, beta_se, xbar, xbar_se, ybar, ybar_se){
+  e <-  beta*xbar*((sqrt((ybar^2)+1))/ybar)
+  jacobian <- c(
+    xbar*((sqrt((ybar^2)+1))/ybar),
+    beta*((sqrt((ybar^2)+1))/ybar),
+    beta*xbar/(sqrt((ybar^2)+1)) - beta*xbar*(sqrt((ybar^2)+1))/(ybar^2)
+  )
+  cov <- matrix(0, nrow=3, ncol=3)
+  diag(cov) <- c(beta_se^2, xbar_se^2, ybar_se^2)
+  e_se <- sqrt(t(jacobian) %*% cov %*% jacobian)
+  return(c(e, e_se))
+}
+
 
 df <- readr::read_csv("03_data/chicagoRidesCleaned.csv")
 
-n_sample <- 20000
+n_sample <- 10000
 df <- df %>%
   sample_n(n_sample)
 n_sample <- nrow(df)
@@ -41,7 +54,7 @@ df %>%
     tip_sd = sd(tip),
     tip_dummy_mean = mean(tip_dummy),
     tip_dummy_sd = sd(tip_dummy),
-    n = n(),,
+    n = n(),
     share = n()/n_sample
   ) %>%
   print(width=Inf)
@@ -112,27 +125,16 @@ ate_naive_se <- model_naive_summary$se["shared_trip_authorized"]
 d_free_naive <- model_naive$nobs - model_naive$nparams
 ate_naive_p <- pval(coef=ate_naive, cv=0, se=ate_naive_se, df=d_free_naive)
 
-# elasticity recovery arcsinh–linear specification with dummy variable
 
-# model fitting
-model_naive_base <- lm(tip_asinh ~ shared_trip_authorized + fare_full + trip_start_date + trip_hour + trip_weekday_hour + origin_destination_pairs + pairs_X_start_date, data = df)
+# elasticity computation
+xbar <- mean(df$shared_trip_authorized)
+xbar_se <- sd(df$shared_trip_authorized) / sqrt(nrow(df))
+ybar <- mean(df$tip)
+ybar_se <- sd(df$tip) / sqrt(nrow(df))
 
-# procedure A
-full_spec <- coef(model_naive_base)
-full_spec <- full_spec[which(!is.na(full_spec))]
-reduced_spec <- full_spec[which(names(full_spec) != "shared_trip_authorized")]
-sinh(sum(full_spec)) / sinh(sum(reduced_spec)) - 1
-sinh(abs(sum(full_spec))) / sinh(abs(sum(reduced_spec))) - 1
+ate_fd_e <- elast(ate_fd, ate_fd_se, xbar, xbar_se, ybar, ybar_se)
+ate_naive_e <- elast(ate_naive, ate_naive_se, xbar, xbar_se, ybar, ybar_se)
 
-# procedure B
-df_X1 <- df %>%
-  mutate(shared_trip_authorized = 1)
-df_X0 <- df %>%
-  mutate(shared_trip_authorized = 0)
-
-pred_X1 <- predict(model_naive, df_X1)
-pred_X0 <- predict(model_naive, df_X0)
-mean(pred_X1) / mean(pred_X0) - 1
 
 
 
@@ -156,9 +158,13 @@ collection <- data.frame(
   ate_fd = ate_fd,
   ate_fd_se = ate_fd_se,
   ate_fd_p = ate_fd_p,
+  ate_fd_elast = ate_fd_e[1],
+  ate_fd_elast_se = ate_fd_e[2],
   ate_naive = ate_naive,
   ate_naive_se = ate_naive_se,
-  ate_naive_p = ate_naive_p
+  ate_naive_p = ate_naive_p,
+  ate_naive_elast = ate_naive_e[1],
+  ate_naive_elast_se = ate_naive_e[2]
 )
 
 

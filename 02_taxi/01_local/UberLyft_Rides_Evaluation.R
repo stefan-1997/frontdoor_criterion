@@ -15,15 +15,16 @@ library(latex2exp)
 # results_alt <- readr::read_csv("03_data/estimationResultsAlternativeXXL.csv")
 
 # # intensive margin
-# results <- readr::read_csv("03_data/estimationResultsBasetipAsinh.csv")
-# results_alt <- readr::read_csv("03_data/estimationResultsAlternativetipAsinh.csv")
+results <- readr::read_csv("03_data/estimationResultsBasetipAsinh.csv")
+results_alt <- readr::read_csv("03_data/estimationResultsAlternativetipAsinh.csv")
 
 # different elasticities
-results_asinh_base <- readr::read_csv("03_data/estimationResultsBasetipAsinh.csv")
-results_asinh <- readr::read_csv("03_data/estimationResultsAlternativetipAsinh.csv")
-results_level <- readr::read_csv("03_data/estimationResultsAlternativetipLevel.csv")
-results_log <- readr::read_csv("03_data/estimationResultsAlternativetipLog.csv")
-
+# results_asinh_base <- readr::read_csv("03_data/estimationResultsBasetipAsinh.csv")
+# results_asinh <- readr::read_csv("03_data/estimationResultsAlternativetipAsinh.csv")
+# results_level <- readr::read_csv("03_data/estimationResultsAlternativetipLevel.csv")
+# results_log <- readr::read_csv("03_data/estimationResultsAlternativetipLog.csv")
+# 
+# results_alt <- readr::read_csv("03_data/estimationResultsAlternativetipAsinhFinal.csv")
 
 plot_01_data <- cbind(
   results_alt %>%
@@ -58,13 +59,28 @@ ggsave("04_visualisation/FDC_ATTs_by_Sample.png", plot=plot_02)
 
 
 
-# # elasticity estimation
-# y <- 0.659*0.842 + 0.208*0.158
-# y <- 0.208
-# beta <- -0.008
-# beta <- -0.127
-# beta * (sqrt(y^2+1)) / y
-# alpha <- 0.113
-# var_beta <- 0.001^2
+
+
+
+
+# # elasticity estimation (experimental)
 # 
-# sinh(alpha + beta) / sinh(alpha) - 1
+# model_naive_base <- lm(tip_asinh ~ shared_trip_authorized + fare_full + trip_start_date + trip_hour + trip_weekday_hour + origin_destination_pairs + pairs_X_start_date, data = df)
+# 
+# # procedure A
+# full_spec <- coef(model_naive_base)
+# full_spec <- full_spec[which(!is.na(full_spec))]
+# reduced_spec <- full_spec[which(names(full_spec) != "shared_trip_authorized")]
+# sinh(sum(full_spec)) / sinh(sum(reduced_spec)) - 1
+# sinh(abs(sum(full_spec))) / sinh(abs(sum(reduced_spec))) - 1
+# 
+# # procedure B
+# df_X1 <- df %>%
+#   mutate(shared_trip_authorized = 1)
+# df_X0 <- df %>%
+#   mutate(shared_trip_authorized = 0)
+# 
+# pred_X1 <- predict(model_naive, df_X1)
+# pred_X0 <- predict(model_naive, df_X0)
+# mean(pred_X1) / mean(pred_X0) - 1
+

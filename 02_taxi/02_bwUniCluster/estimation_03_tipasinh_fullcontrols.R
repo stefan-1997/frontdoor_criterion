@@ -13,18 +13,28 @@ library(fixest)
 set.seed(79)
 
 pval <- function(coef, cv, se, df){
-  
   q = (coef-cv) / se
-  
   p <- pt(
     q = q,
     df = df,
     lower.tail = !(q > 0)
   )*2
-  
   return(p)
-  
 }
+
+elast <- function(beta, beta_se, xbar, xbar_se, ybar, ybar_se){
+  e <-  beta*xbar*((sqrt((ybar^2)+1))/ybar)
+  jacobian <- c(
+    xbar*((sqrt((ybar^2)+1))/ybar),
+    beta*((sqrt((ybar^2)+1))/ybar),
+    beta*xbar/(sqrt((ybar^2)+1)) - beta*xbar*(sqrt((ybar^2)+1))/(ybar^2)
+  )
+  cov <- matrix(0, nrow=3, ncol=3)
+  diag(cov) <- c(beta_se^2, xbar_se^2, ybar_se^2)
+  e_se <- sqrt(t(jacobian) %*% cov %*% jacobian)
+  return(c(e, e_se))
+}
+
 
 
 df <- readr::read_csv("data/chicagoRidesCleaned.csv")
@@ -34,12 +44,12 @@ df <- readr::read_csv("data/chicagoRidesCleaned.csv")
 ### definition of criteria ###
 
 # define chunk size
-n_sample <- 15000000
+n_sample <- nrow(df)
 
 df <- df %>%
   sample_n(n_sample)
 
-n <- 500000
+n <- 2000000
 k <- ceiling(n_sample/n)
 
 
@@ -75,6 +85,12 @@ df %>%
     share = n()/n_sample_sharing
   ) %>%
   print(width=Inf)
+
+print(mean(df$shared_trip_authorized))
+print(sd(df$shared_trip_authorized) / sqrt(nrow(df)))
+print(mean(df$tip))
+print(sd(df$tip) / sqrt(nrow(df)))
+
 
 
 
@@ -133,6 +149,14 @@ ate_naive_se <- model_naive_summary$se["shared_trip_authorized"]
 d_free_naive <- model_naive$nobs - model_naive$nparams
 ate_naive_p <- pval(coef=ate_naive, cv=0, se=ate_naive_se, df=d_free_naive)
 
+xbar <- mean(ch$shared_trip_authorized)
+xbar_se <- sd(ch$shared_trip_authorized) / sqrt(nrow(ch))
+ybar <- mean(ch$tip)
+ybar_se <- sd(ch$tip) / sqrt(nrow(ch))
+
+ate_fd_e <- elast(ate_fd, ate_fd_se, xbar, xbar_se, ybar, ybar_se)
+ate_naive_e <- elast(ate_naive, ate_naive_se, xbar, xbar_se, ybar, ybar_se)
+
 
 collection <- data.frame(
   n = model_f1$nobs,
@@ -154,9 +178,13 @@ collection <- data.frame(
   ate_fd = ate_fd,
   ate_fd_se = ate_fd_se,
   ate_fd_p = ate_fd_p,
+  ate_fd_elast = ate_fd_e[1],
+  ate_fd_elast_se = ate_fd_e[2],
   ate_naive = ate_naive,
   ate_naive_se = ate_naive_se,
-  ate_naive_p = ate_naive_p
+  ate_naive_p = ate_naive_p,
+  ate_naive_elast = ate_naive_e[1],
+  ate_naive_elast_se = ate_naive_e[2]
 )
 
 
@@ -189,6 +217,14 @@ for (i in 2:(k-1)){
   d_free_naive <- model_naive$nobs - model_naive$nparams
   ate_naive_p <- pval(coef=ate_naive, cv=0, se=ate_naive_se, df=d_free_naive)
   
+  xbar <- mean(ch$shared_trip_authorized)
+  xbar_se <- sd(ch$shared_trip_authorized) / sqrt(nrow(ch))
+  ybar <- mean(ch$tip)
+  ybar_se <- sd(ch$tip) / sqrt(nrow(ch))
+  
+  ate_fd_e <- elast(ate_fd, ate_fd_se, xbar, xbar_se, ybar, ybar_se)
+  ate_naive_e <- elast(ate_naive, ate_naive_se, xbar, xbar_se, ybar, ybar_se)
+  
   new_collection <- c(
     model_f1$nobs,
     d_free_fd,
@@ -209,16 +245,20 @@ for (i in 2:(k-1)){
     ate_fd,
     ate_fd_se,
     ate_fd_p,
+    ate_fd_e[1],
+    ate_fd_e[2],
     ate_naive,
     ate_naive_se,
-    ate_naive_p
+    ate_naive_p,
+    ate_naive_e[1],
+    ate_naive_e[2]
   )
   
   collection <- rbind(collection, new_collection)
   
   rm(ch); invisible(gc())
 
-  write.csv(collection, "data/estimationResultsAlternativeTipAsinh.csv", row.names = FALSE)
+  write.csv(collection, "data/estimationResultsAlternativeTipAsinhFinal.csv", row.names = FALSE)
 
   print(model_f1$nobs)
   
@@ -252,6 +292,14 @@ ate_naive_se <- model_naive_summary$se["shared_trip_authorized"]
 d_free_naive <- model_naive$nobs - model_naive$nparams
 ate_naive_p <- pval(coef=ate_naive, cv=0, se=ate_naive_se, df=d_free_naive)
 
+xbar <- mean(ch$shared_trip_authorized)
+xbar_se <- sd(ch$shared_trip_authorized) / sqrt(nrow(ch))
+ybar <- mean(ch$tip)
+ybar_se <- sd(ch$tip) / sqrt(nrow(ch))
+
+ate_fd_e <- elast(ate_fd, ate_fd_se, xbar, xbar_se, ybar, ybar_se)
+ate_naive_e <- elast(ate_naive, ate_naive_se, xbar, xbar_se, ybar, ybar_se)
+
 new_collection <- c(
   model_f1$nobs,
   d_free_fd,
@@ -272,15 +320,19 @@ new_collection <- c(
   ate_fd,
   ate_fd_se,
   ate_fd_p,
+  ate_fd_e[1],
+  ate_fd_e[2],
   ate_naive,
   ate_naive_se,
-  ate_naive_p
+  ate_naive_p,
+  ate_naive_e[1],
+  ate_naive_e[2]
 )
 
 collection <- rbind(collection, new_collection)
 
 rm(ch); invisible(gc())
 
-write.csv(collection, "data/estimationResultsAlternativeTipAsinh.csv", row.names = FALSE)
+write.csv(collection, "data/estimationResultsAlternativeTipAsinhFinal.csv", row.names = FALSE)
 
 
